@@ -1,4 +1,4 @@
-# PostgreSQL Admin Articles - Drafts from Praveen Madupu (Cloud DataBase Engineer)
+# PostgreSQL Admin Articles - Drafts from Praveen Madupu (Cloud DB Engineer)
 
 This repository contains a collection of practical articles and notes focused on **PostgreSQL database administration**. 
 
