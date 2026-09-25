@@ -1,3 +1,25 @@
+# STRICT EXECUTION RULE — READ THIS FIRST
+
+**LINUX SHELL** = Run at the Rocky Linux prompt, e.g. `[rockylinux@DBLabs ~]$`.
+
+**PGSQL / psql** = Run after entering PostgreSQL, e.g. `postgres=#` or `dvdrental=#`.
+
+**LINUX CONFIG** = Edit a PostgreSQL configuration file from Linux. These are **not SQL commands** and must never be pasted into `psql`.
+
+**Rule:** 
+
+`pg_dump`, `pg_dumpall`, `pg_restore`, `pg_basebackup`, `pg_verifybackup`, `pg_combinebackup`, `createdb`, `psql`, `systemctl`, `mkdir`, `cp`, `mv`, `chown`, `ls`, `scp`, `vi` and similar commands are **Linux shell commands**. 
+
+SQL such as `SELECT`, `CREATE ROLE`, `SHOW`, `ALTER SYSTEM`, and `ANALYZE` is **PGSQL**. 
+
+Configuration parameters such as `archive_mode`, `archive_command`, `restore_command`, and `recovery_target_time` belong in **PostgreSQL configuration**, not in `psql`.
+
+**Your current lab:** 
+Rocky Linux / PostgreSQL 18.6 / data directory `/var/lib/pgsql/18/data` / database `dvdrental`. 
+Your supplied lab output confirms PostgreSQL 18.6 is running from that data directory.  
+
+---
+
 Below is a **PostgreSQL 18 production-oriented backup/restore matrix**, using the **DVDRental** sample database for practical examples. 
 
 Separating **logical backups**, **physical backups**, **WAL/PITR**, **incremental backups**, and **cluster/global backups**, because they solve different recovery scenarios.
@@ -23,7 +45,7 @@ PostgreSQL 18 also provides `pg_basebackup`, `pg_combinebackup`, and `pg_verifyb
 | Table backup          | `pg_dump -t`                          | Table                 | `psql` / `pg_restore` | ❌                       | Object-level recovery      |
 | Cluster/global backup | `pg_dumpall`                          | Roles/DBs/tablespaces | `psql`                | ❌                       | Cluster metadata           |
 | Globals-only          | `pg_dumpall --globals-only`           | Roles/tablespaces     | `psql`                | ❌                       | DR prerequisite            |
-| Physical base backup  | `pg_basebackup`                       | Entire cluster        | PostgreSQL startup    | ✅*                      | DR / standby               |
+| Physical base backup  | `pg_basebackup`                       | Entire cluster        | Filesystem/startup recovery | Base backup; PITR requires WAL | DR / standby               |
 | File-system backup    | Filesystem/storage                    | Entire cluster        | Filesystem restore    | Depends                 | Enterprise backup          |
 | WAL archive           | `archive_command` / `archive_library` | WAL                   | Recovery process      | ✅                       | PITR                       |
 | PITR                  | Base + WAL                            | Entire cluster        | PostgreSQL recovery   | ✅                       | Disaster recovery          |
@@ -41,13 +63,17 @@ I'll use:
 ```text
 Database       : dvdrental
 PostgreSQL     : 18
-OS             : RHEL/Ubuntu Linux
+OS             : Rocky Linux (user lab)
+PostgreSQL     : 18.6
 DB user        : postgres
 Port           : 5432
-Backup root    : /backup/postgresql
+Data directory : /var/lib/pgsql/18/data
+Backup root    : /backup/postgresql (examples)
 ```
 
 Check:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql --version
@@ -61,11 +87,15 @@ psql (PostgreSQL) 18.x
 
 Connect:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 psql -U postgres -d dvdrental
 ```
 
 Verify database:
+
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
 
 ```sql
 SELECT current_database(),
@@ -81,6 +111,8 @@ This is the simplest logical backup.
 
 ## Backup
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump -U postgres -d dvdrental \
   -Fp \
@@ -89,12 +121,16 @@ pg_dump -U postgres -d dvdrental \
 
 or:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump -U postgres dvdrental \
   > /backup/postgresql/dvdrental.sql
 ```
 
 Check:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 ls -lh /backup/postgresql/dvdrental.sql
@@ -106,11 +142,15 @@ ls -lh /backup/postgresql/dvdrental.sql
 
 Create a new database:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 createdb -U postgres -T template0 dvdrental_restore
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql -U postgres \
@@ -120,9 +160,13 @@ psql -U postgres \
 
 Validate:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 psql -U postgres -d dvdrental_restore
 ```
+
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
 
 ```sql
 SELECT count(*) FROM customer;
@@ -138,6 +182,8 @@ PostgreSQL recommends restoring plain SQL dumps using `psql`; the target databas
 
 This is one of the most important DBA backup formats.
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump -U postgres \
   -d dvdrental \
@@ -146,6 +192,8 @@ pg_dump -U postgres \
 ```
 
 Check:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 file /backup/postgresql/dvdrental.dump
@@ -157,11 +205,15 @@ file /backup/postgresql/dvdrental.dump
 
 Very useful in production:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_restore -l /backup/postgresql/dvdrental.dump
 ```
 
 You can save the TOC:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore -l /backup/postgresql/dvdrental.dump \
@@ -174,11 +226,15 @@ pg_restore -l /backup/postgresql/dvdrental.dump \
 
 Create database:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 createdb -U postgres -T template0 dvdrental_restore
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -188,6 +244,8 @@ pg_restore \
 ```
 
 Validate:
+
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
 
 ```sql
 SELECT count(*) FROM film;
@@ -201,6 +259,8 @@ Custom archives are restored with `pg_restore`, not `psql`. They allow selective
 # 5. Custom backup with DROP/CREATE during restore
 
 Production-style example:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -228,6 +288,8 @@ Directory format is extremely important for larger databases because it supports
 
 Backup:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -238,6 +300,8 @@ pg_dump \
 
 Directory:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 ls -lh /backup/postgresql/dvdrental_dir
 ```
@@ -245,6 +309,8 @@ ls -lh /backup/postgresql/dvdrental_dir
 ---
 
 ## Parallel directory backup
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_dump \
@@ -263,9 +329,13 @@ PostgreSQL 18 documentation specifically notes that **directory format is the on
 
 ## Restore
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 createdb -U postgres dvdrental_restore
 ```
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -275,6 +345,8 @@ pg_restore \
 ```
 
 Parallel restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -290,6 +362,8 @@ pg_restore \
 
 Backup:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -300,9 +374,13 @@ pg_dump \
 
 Restore:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 createdb -U postgres dvdrental_restore
 ```
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -316,6 +394,8 @@ pg_restore \
 # 8. Backup #5 — Schema-only backup
 
 Sometimes you only need the database structure.
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_dump \
@@ -338,9 +418,13 @@ CREATE FUNCTION
 
 Restore:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 createdb -U postgres dvdrental_schema_restore
 ```
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql -U postgres \
@@ -364,6 +448,8 @@ Useful for:
 
 Backup only data:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -373,6 +459,8 @@ pg_dump \
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql \
@@ -401,6 +489,8 @@ customer
 
 Backup:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -410,6 +500,8 @@ pg_dump \
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql \
@@ -424,6 +516,8 @@ psql \
 
 Example:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -436,6 +530,8 @@ pg_dump \
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -450,6 +546,8 @@ pg_restore \
 
 For example:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -460,6 +558,8 @@ pg_dump \
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -478,6 +578,8 @@ For that, PostgreSQL provides `pg_dumpall`. ([PostgreSQL][3])
 
 ## Full cluster logical dump
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dumpall \
   -U postgres \
@@ -485,6 +587,8 @@ pg_dumpall \
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql \
@@ -498,6 +602,8 @@ psql \
 # 14. Globals-only backup
 
 This is especially important for production DR.
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_dumpall \
@@ -516,6 +622,8 @@ Other cluster-level definitions
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql \
@@ -546,15 +654,21 @@ Now we move from **logical backup** to **physical backup**.
 
 Use:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_basebackup
 ```
 
 Example:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 mkdir -p /backup/postgresql/base
 ```
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_basebackup \
@@ -586,6 +700,8 @@ PostgreSQL documents `pg_basebackup` as the standard utility for creating a base
 
 # 16. Physical base backup using tar
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_basebackup \
   -U postgres \
@@ -608,11 +724,15 @@ pg_wal.tar
 
 PostgreSQL 18 provides:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_verifybackup
 ```
 
 Example:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_verifybackup \
@@ -629,17 +749,23 @@ PostgreSQL 18 includes `pg_verifybackup` specifically for verifying base-backup 
 
 Suppose PostgreSQL's data directory is:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 /var/lib/pgsql/18/data
 ```
 
 Stop PostgreSQL:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 sudo systemctl stop postgresql-18
 ```
 
 Move existing directory:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 sudo mv /var/lib/pgsql/18/data \
@@ -648,11 +774,15 @@ sudo mv /var/lib/pgsql/18/data \
 
 Create new:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 sudo mkdir -p /var/lib/pgsql/18/data
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 sudo cp -a \
@@ -662,6 +792,8 @@ sudo cp -a \
 
 Correct ownership:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 sudo chown -R postgres:postgres \
   /var/lib/pgsql/18/data
@@ -669,17 +801,23 @@ sudo chown -R postgres:postgres \
 
 Start:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 sudo systemctl start postgresql-18
 ```
 
 Validate:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_lsclusters
 ```
 
 or:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql -U postgres -c "SELECT version();"
@@ -693,6 +831,8 @@ This is the foundation for **PITR**.
 
 Check:
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 SHOW wal_level;
 SHOW archive_mode;
@@ -700,6 +840,8 @@ SHOW archive_command;
 ```
 
 For PITR, configure:
+
+**RUN ON: LINUX — edit PostgreSQL configuration (`postgresql.conf` / recovery configuration)**
 
 ```conf
 wal_level = replica
@@ -709,6 +851,8 @@ archive_command = 'cp %p /backup/postgresql/wal/%f'
 
 Create directory:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 sudo mkdir -p /backup/postgresql/wal
 sudo chown postgres:postgres /backup/postgresql/wal
@@ -716,17 +860,23 @@ sudo chown postgres:postgres /backup/postgresql/wal
 
 Restart PostgreSQL because `archive_mode` requires a restart:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 sudo systemctl restart postgresql-18
 ```
 
 Force WAL switch:
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 SELECT pg_switch_wal();
 ```
 
 Check:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 ls -lh /backup/postgresql/wal
@@ -807,6 +957,8 @@ Restore database to 10:29:59
 
 ## Step 1 — Base backup
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_basebackup \
   -U postgres \
@@ -841,6 +993,8 @@ contains:
 
 Stop PostgreSQL:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 sudo systemctl stop postgresql-18
 ```
@@ -851,11 +1005,15 @@ Then configure recovery target.
 
 PostgreSQL 18 uses:
 
+**RUN ON: LINUX — edit PostgreSQL configuration (`postgresql.conf` / recovery configuration)**
+
 ```conf
 restore_command = 'cp /backup/postgresql/wal/%f %p'
 ```
 
 For example:
+
+**RUN ON: LINUX — edit PostgreSQL configuration (`postgresql.conf` / recovery configuration)**
 
 ```conf
 restore_command = 'cp /backup/postgresql/wal/%f %p'
@@ -863,6 +1021,8 @@ recovery_target_time = '2026-09-25 10:29:59-05'
 ```
 
 Then start PostgreSQL:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 sudo systemctl start postgresql-18
@@ -892,11 +1052,15 @@ Instead of time, you can define a recovery target name.
 
 Example:
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 SELECT pg_create_restore_point('before_bad_deployment');
 ```
 
 Later:
+
+**RUN ON: LINUX — edit PostgreSQL configuration (`postgresql.conf` / recovery configuration)**
 
 ```conf
 recovery_target_name = 'before_bad_deployment'
@@ -912,6 +1076,8 @@ You can also target an LSN.
 
 Find LSN:
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 SELECT pg_current_wal_lsn();
 ```
@@ -923,6 +1089,8 @@ Example:
 ```
 
 Then:
+
+**RUN ON: LINUX — edit PostgreSQL configuration (`postgresql.conf` / recovery configuration)**
 
 ```conf
 recovery_target_lsn = '0/5A3F120'
@@ -963,6 +1131,8 @@ Instead of repeatedly transferring the entire cluster.
 
 First full backup:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_basebackup \
   -U postgres \
@@ -976,6 +1146,8 @@ Later an incremental backup can be taken using the appropriate manifest from the
 
 Example structure:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_basebackup \
   -U postgres \
@@ -987,6 +1159,8 @@ pg_basebackup \
 ```
 
 Then combine the dependent backups with:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_combinebackup \
@@ -1003,6 +1177,8 @@ pg_combinebackup \
 
 Example:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -1013,6 +1189,8 @@ pg_dump \
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -1046,29 +1224,37 @@ inventory
 
 List:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
-pg_restore -l dvdrental.dump
+pg_restore -l /backup/postgresql/dvdrental.dump
 ```
 
 You can extract/edit the TOC:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
-pg_restore -l dvdrental.dump > restore.list
+pg_restore -l /backup/postgresql/dvdrental.dump > restore.list
 ```
 
 Edit:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
-vi restore.list
+vi /backup/postgresql/restore.list
 ```
 
 Then:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
   -U postgres \
   -d dvdrental_restore \
-  -L restore.list \
+  -L /backup/postgresql/restore.list \
   dvdrental.dump
 ```
 
@@ -1080,6 +1266,8 @@ This is a major advantage of custom/directory archives.
 
 Example:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -1089,6 +1277,8 @@ pg_dump \
 ```
 
 Then:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_dump \
@@ -1102,12 +1292,16 @@ pg_dump \
 
 Restore:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 psql -U postgres -d dvdrental_restore \
      -f dvdrental_schema.sql
 ```
 
 Then:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql -U postgres -d dvdrental_restore \
@@ -1122,6 +1316,8 @@ Custom format already provides compression behavior.
 
 Example:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -U postgres \
@@ -1133,6 +1329,8 @@ pg_dump \
 You can also control compression depending on the PostgreSQL 18 options.
 
 Check:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_dump --help
@@ -1156,6 +1354,8 @@ Backup server:
 
 Run from backup server:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump \
   -h 192.168.0.145 \
@@ -1171,6 +1371,8 @@ This is one advantage of logical backup: `pg_dump` can connect remotely like a n
 ---
 
 # 31. Remote physical backup
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_basebackup \
@@ -1191,6 +1393,8 @@ This requires the appropriate replication privileges and authentication configur
 
 Create:
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 CREATE ROLE backup_user
 WITH LOGIN
@@ -1199,6 +1403,8 @@ PASSWORD 'StrongPassword';
 ```
 
 Then:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_basebackup \
@@ -1239,7 +1445,7 @@ PostgreSQL notes that logical dumps are generally portable to newer PostgreSQL v
 
 | Requirement          | pg_dump | pg_dumpall |
 | -------------------- | ------: | ---------: |
-| One database         |       ✅ |          ✅ |
+| One database         |       ✅ |           |
 | Multiple databases   |       ❌ |          ✅ |
 | Roles                |       ❌ |          ✅ |
 | Tablespaces          |       ❌ |          ✅ |
@@ -1349,6 +1555,8 @@ Actual frequency should be determined by **RPO/RTO, database size, WAL generatio
 
 Before a major deployment:
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 SELECT pg_create_restore_point(
     'before_dvdrental_application_upgrade'
@@ -1356,6 +1564,8 @@ SELECT pg_create_restore_point(
 ```
 
 Record:
+
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
 
 ```sql
 SELECT pg_current_wal_lsn();
@@ -1375,15 +1585,21 @@ backup completed = backup is usable
 
 For logical:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
-pg_restore -l dvdrental.dump
+pg_restore -l /backup/postgresql/dvdrental.dump
 ```
 
 Test restore:
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 createdb dvdrental_test_restore
 ```
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore \
@@ -1394,6 +1610,8 @@ pg_restore \
 
 Then:
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 SELECT count(*) FROM customer;
 SELECT count(*) FROM film;
@@ -1402,6 +1620,8 @@ SELECT count(*) FROM payment;
 ```
 
 For physical:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_verifybackup /backup/postgresql/base/full
@@ -1412,6 +1632,8 @@ pg_verifybackup /backup/postgresql/base/full
 # 40. DVDRental validation queries
 
 After every restore, run:
+
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
 
 ```sql
 SELECT current_database();
@@ -1437,11 +1659,15 @@ FROM actor;
 
 Also:
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 SELECT pg_size_pretty(pg_database_size('dvdrental'));
 ```
 
 And:
+
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
 
 ```sql
 SELECT schemaname,
@@ -1458,11 +1684,15 @@ ORDER BY schemaname;
 
 ### Plain SQL
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump -d dvdrental > dvdrental.sql
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 psql -d dvdrental_restore -f dvdrental.sql
@@ -1470,11 +1700,15 @@ psql -d dvdrental_restore -f dvdrental.sql
 
 ### Custom
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump -Fc -d dvdrental -f dvdrental.dump
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore -d dvdrental_restore dvdrental.dump
@@ -1482,11 +1716,15 @@ pg_restore -d dvdrental_restore dvdrental.dump
 
 ### Directory
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump -Fd -j 4 -d dvdrental -f dvdrental_dir
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore -j 4 -d dvdrental_restore dvdrental_dir
@@ -1494,11 +1732,15 @@ pg_restore -j 4 -d dvdrental_restore dvdrental_dir
 
 ### Tar
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump -Ft -d dvdrental -f dvdrental.tar
 ```
 
 Restore:
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_restore -d dvdrental_restore dvdrental.tar
@@ -1506,11 +1748,15 @@ pg_restore -d dvdrental_restore dvdrental.tar
 
 ### Schema only
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump --schema-only -d dvdrental > schema.sql
 ```
 
 ### Data only
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_dump --data-only -d dvdrental > data.sql
@@ -1518,11 +1764,15 @@ pg_dump --data-only -d dvdrental > data.sql
 
 ### Table
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dump -t customer -d dvdrental > customer.sql
 ```
 
 ### Globals
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_dumpall --globals-only > globals.sql
@@ -1530,11 +1780,15 @@ pg_dumpall --globals-only > globals.sql
 
 ### Full cluster logical
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_dumpall > cluster.sql
 ```
 
 ### Physical
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_basebackup \
@@ -1546,11 +1800,15 @@ pg_basebackup \
 
 ### Verify
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_verifybackup /backup/base
 ```
 
 ### WAL
+
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
 
 ```sql
 SELECT pg_switch_wal();
@@ -1558,11 +1816,15 @@ SELECT pg_switch_wal();
 
 ### Restore point
 
+**RUN ON: PGSQL / `psql` — NOT at the Linux shell**
+
 ```sql
 SELECT pg_create_restore_point('before_change');
 ```
 
 ### PITR
+
+**RUN ON: LINUX — edit PostgreSQL configuration (`postgresql.conf` / recovery configuration)**
 
 ```conf
 restore_command = 'cp /backup/wal/%f %p'
@@ -1571,6 +1833,8 @@ recovery_target_time = '2026-09-25 10:29:59-05'
 
 ### Incremental
 
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
+
 ```bash
 pg_basebackup \
   --incremental=/backup/base/backup_manifest \
@@ -1578,6 +1842,8 @@ pg_basebackup \
 ```
 
 ### Combine
+
+**RUN ON: LINUX SHELL (Rocky Linux) — NOT inside `psql`**
 
 ```bash
 pg_combinebackup \
@@ -1673,5 +1939,183 @@ This gives you the **native PostgreSQL 18 backup/restore toolbox**. For your DBA
 [5]: https://www.postgresql.org/docs/18/reference-client.html "PostgreSQL: Documentation: 18: PostgreSQL Client Applications"
 [6]: https://www.postgresql.org/docs/18/release-18.html "PostgreSQL: Documentation: 18: E.6. Release 18"
 
+---
 
+# 44. Lab correction — Windows → Rocky Linux file transfer
 
+Your lab transcript shows this failed:
+
+**RUN ON: LINUX SHELL**
+
+```bash
+scp "T:\4_PGSQL_DBA\PGSQLLABS\dvdrental\dvdrental.tar" rockylinux@192.168.223.129:/backup/dvdrental/
+```
+
+The reason is important: that command was being executed **on Rocky Linux**, so Linux interpreted `T:` as a hostname/path component. The error `Could not resolve hostname t` confirms this. 
+
+If `dvdrental.tar` is on the Windows host, run `scp` **from Windows PowerShell**, not from Rocky Linux:
+
+**RUN ON: WINDOWS POWERSHELL**
+
+```powershell
+scp "T:\4_PGSQL_DBA\PGSQLLABS\dvdrental\dvdrental.tar" rockylinux@192.168.223.129:/backup/dvdrental/
+```
+
+Then verify the file on Rocky Linux:
+
+**RUN ON: LINUX SHELL**
+
+```bash
+ls -lh /backup/dvdrental/
+```
+
+Your supplied lab output shows the archive ultimately existed on Rocky Linux at `/backup/dvdrental/dvdrental.tar` and was 2.8 MB. 
+
+---
+
+# 45. Lab correction — `\l`, `\dt` and SQL
+
+These are **psql meta-commands**, so they are run **inside `psql`**, not at the Linux shell.
+
+**RUN ON: PGSQL / `psql`**
+
+```sql
+\l
+\c dvdrental
+\dt
+```
+
+Your transcript shows `\dt` working when executed through `psql`, while typing `\l` at the Linux prompt caused `bash: l: command not found`. 
+
+Correct Linux entry into psql:
+
+**RUN ON: LINUX SHELL**
+
+```bash
+sudo -u postgres psql
+```
+
+Then the prompt changes to:
+
+**PGSQL / `psql`**
+
+```text
+postgres=#
+```
+
+Exit psql:
+
+**RUN ON: PGSQL / `psql`**
+
+```sql
+\q
+```
+
+---
+
+# 46. Lab correction — `sudo` syntax
+
+These are Linux commands.
+
+**RUN ON: LINUX SHELL**
+
+```bash
+sudo -u postgres psql
+sudo -u postgres createdb -T template0 dvdrental
+sudo -u postgres pg_restore --dbname=dvdrental --no-owner --no-acl --verbose /backup/dvdrental/dvdrental.tar
+```
+
+Do **not** type `sudo -u postgres` by itself expecting a shell. Do not type `sudo - u postgres`; the space between `-` and `u` is invalid. Your transcript shows both forms producing errors. 
+
+---
+
+# 47. Strict command classification — quick reference
+
+| Command / syntax | Run where |
+|---|---|
+| `psql --version` | **LINUX SHELL** |
+| `sudo systemctl status postgresql-18` | **LINUX SHELL** |
+| `sudo systemctl start/stop/restart postgresql-18` | **LINUX SHELL** |
+| `createdb` | **LINUX SHELL** |
+| `pg_dump` | **LINUX SHELL** |
+| `pg_dumpall` | **LINUX SHELL** |
+| `pg_restore` | **LINUX SHELL** |
+| `pg_basebackup` | **LINUX SHELL** |
+| `pg_verifybackup` | **LINUX SHELL** |
+| `pg_combinebackup` | **LINUX SHELL** |
+| `mkdir`, `cp`, `mv`, `chown`, `ls`, `vi` | **LINUX SHELL** |
+| `scp` | **LINUX SHELL** or **Windows PowerShell**, depending on where the source file exists |
+| `SHOW ...;` | **PGSQL / `psql`** |
+| `SELECT ...;` | **PGSQL / `psql`** |
+| `CREATE ROLE ...;` | **PGSQL / `psql`** |
+| `ANALYZE;` | **PGSQL / `psql`** |
+| `SELECT pg_switch_wal();` | **PGSQL / `psql`** |
+| `SELECT pg_create_restore_point(...);` | **PGSQL / `psql`** |
+| `\l`, `\dt`, `\c`, `\q` | **PGSQL / `psql` meta-commands** |
+| `archive_mode = on` | **LINUX CONFIG** |
+| `archive_command = ...` | **LINUX CONFIG** |
+| `restore_command = ...` | **LINUX CONFIG** |
+| `recovery_target_time = ...` | **LINUX CONFIG** |
+
+---
+
+# 48. Important corrections to the original notes
+
+1. **`pg_dumpall` does not produce a custom/tar/directory archive.** It produces SQL text and is restored with `psql`.
+
+2. **`pg_basebackup` backs up the whole PostgreSQL cluster**, not only `dvdrental`. Your original note correctly states this; keep it.
+
+3. **A base backup by itself is not PITR.** PITR requires the base backup plus the required continuous WAL archive chain.
+
+4. **`pg_dump` is logical; `pg_basebackup` is physical.** Do not describe them as interchangeable.
+
+5. **PostgreSQL 12+ recovery uses `recovery.signal` / `standby.signal` mechanics.** Do not teach old `recovery.conf`-style instructions as if they were PostgreSQL 18 instructions.
+
+6. **`archive_mode` requires a server restart when enabling it.** `archive_command` is a normal configuration parameter and does not by itself require a restart.
+
+7. **`pg_verifybackup` verifies a `pg_basebackup` backup**, not a logical `pg_dump` archive.
+
+8. **`pg_restore` does not restore plain `.sql` files.** Use `psql` for plain SQL dumps.
+
+9. **`pg_restore` can restore TAR, custom, and directory archives.**
+
+10. **`pg_dump -Fd` is the format that supports parallel dumping with `-j`.**
+
+11. **`psql`, `pg_dump`, and `pg_restore` are client programs launched from Linux/Windows shells.** The fact that they connect to PostgreSQL does not make them SQL commands.
+
+12. **`\l`, `\dt`, `\c`, and `\q` are psql meta-commands**, not SQL and not Linux commands.
+
+---
+
+# 49. Recommended notation for all future PGSQL lab notes
+
+Use this exact pattern so there is never ambiguity:
+
+### STEP X — Description
+
+**RUN ON: LINUX SHELL**
+
+```bash
+sudo -u postgres psql -d dvdrental
+```
+
+**RUN ON: PGSQL / `psql`**
+
+```sql
+SELECT current_database();
+```
+
+**RUN ON: LINUX CONFIG**
+
+```conf
+archive_mode = on
+archive_command = 'cp %p /backup/postgresql/wal/%f'
+```
+
+**RUN ON: LINUX SHELL**
+
+```bash
+sudo systemctl restart postgresql-18
+```
+
+This is the convention to use throughout the DBA notes.
