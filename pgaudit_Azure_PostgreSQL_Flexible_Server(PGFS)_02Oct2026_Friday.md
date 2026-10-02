@@ -3,6 +3,7 @@ Implement pgaudit on Azure PostgreSQL Flexible Server (PGFS).
 Documentation or implementation guides covering the configuration, prerequisites, recommended settings, and best practices for enabling pgaudit on Azure PGFS. 
 
 ===============================================================================
+
 Information:
 
 **pgaudit is supported on Azure Database for PostgreSQL Flexible Server (PGFS)**, and Microsoft now has a fairly complete official implementation path. 
