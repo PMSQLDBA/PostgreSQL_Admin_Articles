@@ -1,7 +1,7 @@
 # PostgreSQL + pgBackRest Failover: Why `archive_mode` Matters
 
-Below is a consolidated technical article based on the supplied post, with the PostgreSQL and pgBackRest behavior cross-checked against the current official documentation. 
-The original article was published by Stefan Fercot on September 23, 2026. ([pgstef’s blog][1]) citeturn1search0
+Below is a consolidated technical article based on a blog post, with the PostgreSQL and pgBackRest behavior cross-checked against the current official documentation. 
+The original article was published by Stefan Fercot on September 23, 2026. ([pgstef’s blog][1])
 
 ---
 
