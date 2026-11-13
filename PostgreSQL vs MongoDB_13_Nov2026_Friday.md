@@ -765,3 +765,7 @@ My recommendation: Do not migrate because of a prediction. Migrate when workload
 7. [MongoDB 8.0 release documentation](https://www.mongodb.com/docs/v8.0/release-notes/8.0/).
 
 Technical accuracy note: This article reflects information available on November 13, 2026. PostgreSQL 18.6 is the referenced current PostgreSQL 18 maintenance release; PostgreSQL 19 RC1 is not a production-ready final release. MongoDB 9.0 and PostgreSQL 19 developments should be evaluated against their respective official release documentation.
+
+
+Credits To:
+https://medium.com/@maahisoft20/postgresql-will-kill-mongodb-by-2028-the-migration-has-already-started-b259d34e47b9 
