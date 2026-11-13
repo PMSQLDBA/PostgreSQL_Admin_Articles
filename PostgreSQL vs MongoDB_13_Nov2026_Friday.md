@@ -764,8 +764,4 @@ My recommendation: Do not migrate because of a prediction. Migrate when workload
 6. [MongoDB 9.0 official announcement](https://www.mongodb.com/company/newsroom/press-releases/mongodb-launches-mongodb-9-0-the-best-version-ever-built-and-atlas-infinite-for-ai-scale-demand?locale_fallback=es\&utm_source=chatgpt.com).
 7. [MongoDB 8.0 release documentation](https://www.mongodb.com/docs/v8.0/release-notes/8.0/).
 
-**Suggested article title for publication:**
-
-*PostgreSQL vs MongoDB in 2028: Is JSONB Changing the Future of Enterprise Database Architecture?*
-
 Technical accuracy note: This article reflects information available on November 13, 2026. PostgreSQL 18.6 is the referenced current PostgreSQL 18 maintenance release; PostgreSQL 19 RC1 is not a production-ready final release. MongoDB 9.0 and PostgreSQL 19 developments should be evaluated against their respective official release documentation.
